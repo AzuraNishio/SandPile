@@ -27,7 +27,8 @@ void main (){
 	uint i = gl_GlobalInvocationID.x;
 	Particle THIS = p[i];
 	
-	uint gridID = uint(THIS.pos.x / cellSize) + uint(THIS.pos.y / cellSize) * gridWidth;
+	uint gridID = uint(clamp(THIS.pos.x / cellSize, 0.0, float(gridWidth - 1u))) + 
+              uint(clamp(THIS.pos.y / cellSize, 0.0, float(gridWidth - 1u))) * gridWidth;
 
 
 	// Store the particle-grid pair in the buffer
