@@ -7,7 +7,7 @@ in vec4 fData;
 
 out vec4 fragColor;
 
-#define particleTypeSize 0.25
+#define particleTypeSize 0.333334
 
 vec4 col(vec4 col, float n)
 {	
@@ -20,10 +20,9 @@ void main(){
 	coord.y *= -1.0;
 
 	vec4 bColor = vec4(0.0);
-	bColor += col(vec4(0.3, 1.3, 0.1, 0.5), 0.0);
-	bColor += col(vec4(0.8, 0.0, 0.0, 1.0), 1.0);
-	bColor += col(vec4(1.4, 1.5, 2.0, 0.5), 2.0);
-	bColor += col(vec4(1.0, 1.0, 0.0, 0.9), 3.0);
+	bColor += col(vec4(1.0, 0.3, 1.0, 0.5), 0.0);
+	bColor += col(vec4(1.0, 0.3, 0.3, 0.75), 1.0);
+	bColor += col(vec4(1.0, 1.0, 0.3, 0.9), 2.0);
 
 	vec4 color = bColor;
 
@@ -64,6 +63,7 @@ void main(){
 	color.a += min(0.8, 1.4 * (fuzzyAlpha - 0.5)) * fuzzy;
 	color.rgb -= 0.5 * fuzzy;
 	color.rgb += step(rezizedCoord2.y, 0.0) * 0.9 * fuzzy;
+
 
 	fragColor = color;
 }

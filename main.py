@@ -16,8 +16,8 @@ class SandPileWindow(mglw.WindowConfig):
 	world_size = (2000.0, 1400.0) # the world will be from -world_size to +world_size in both x and y
 	cell_size = 1.0 # size of the grid cells for THE GRIIID
 	
-	# N = 100000 # number of particles
-	# world_size = (500.0, 350.0) # small for overclock
+	N = 90000 # number of particles
+	world_size = (1000.0, 720.0) # small for overclock
 
 	def setup_shaders(self):
 		# load the shader files as strings
@@ -54,7 +54,7 @@ class SandPileWindow(mglw.WindowConfig):
 		p_data[:self.N, 3] = np.random.uniform(-speed, speed, self.N)
 
 		# randomize particle type 
-		p_data[:self.N, 4] = np.random.uniform(0, 1, self.N)
+		p_data[:self.N, 4] = np.random.uniform(-1, 0, self.N)
 
 		# randomize particle rotation 
 		p_data[:self.N, 5] = np.random.uniform(0, 2 * np.pi, self.N)

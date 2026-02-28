@@ -13,7 +13,7 @@ uniform float cellSize;
 #define PI2 6.283185307179586476925286766559
 #define PIHALF 1.5707963267948966192313216916398
 
-#define particleTypeSize 0.25
+#define particleTypeSize 0.333334
 
 struct Particle{
 	vec2 pos;
@@ -48,47 +48,92 @@ uint cellDisplace(int x, int y, uint cell){
 }
 
 float type(Particle p, float n){ return step(p.type, (n * particleTypeSize) + particleTypeSize) - step(p.type, (n * particleTypeSize)); }
-float yellow(Particle p){ return type(p, 3.0); }	
+float yellow(Particle p){ return type(p, 2.0); }	
 float red(Particle p){ return type(p, 1.0); }
-float white(Particle p){ return type(p, 2.0); }
-float green(Particle p){ return type(p, 0.0); }
+float magenta(Particle p){ return type(p, 0.0); }
+float redOrYellow(Particle p){ return yellow(p) + red(p); }
 
 
+struct BondForce{
+	float force;
+	float damping;
+	float dist;
+	float alignForce;
+	float selfTargetAngle;
+	float selfAttachPointsInverse;
+	float otherTargetAngle;
+	float otherAttachPointsInverse;
+	float tollerance;
+	float fullDamping;
+};
 
-float brownianForce(Particle p){
-	return (yellow(p) * 1.0) + (red(p) * 2.0) + (white(p) * 30.0) + (green(p) * 10.0);
+BondForce bondForcePair(Particle p, Particle other){
+	float redYellow = red(p) * yellow(other);
+	float yellowRed = yellow(p) * red(other);
+	float yellowYellow = yellow(p) * yellow(other);
+	float redRed = red(p) * red(other);
+	
+	
+
+	BondForce bf;
+	//translation
+	bf.force = 
+	((yellowYellow) * 21.0) +
+	((redRed) * 21.0) +
+	((redYellow + yellowRed) * 35.0);
+
+	bf.damping = 
+	((yellowYellow) * 0.5) +
+	((redRed) * 4.0) +
+	((redYellow + yellowRed) * 10.0);
+
+	bf.fullDamping = 
+	((yellowYellow) * 10.0) +
+	((redRed) * 10.0) +
+	((redYellow + yellowRed) * 4.0);
+
+	bf.dist = 
+	((yellowYellow) * 0.6) +
+	((redRed) * 0.7) +
+	((redYellow + yellowRed) * 0.6);
+	
+	//alignment
+	bf.alignForce = 
+	(yellowYellow * 1.5) +
+	((redRed) * 1.5) +
+	((redYellow + yellowRed) * 2.0);
+	
+	bf.selfTargetAngle = 
+	(yellowYellow * (PIHALF)) +
+	((redRed) * PIHALF) +
+	((redYellow + yellowRed) * 0.0);
+
+	bf.selfAttachPointsInverse = 
+	(yellowYellow * 0.5) +
+	((redRed) * 0.5) +
+	((redYellow + yellowRed) * 1.0);
+
+	bf.otherTargetAngle = 
+	(yellowYellow * PIHALF) +
+	((redRed) * PIHALF) +
+	((redYellow + yellowRed) * PI);
+
+	bf.otherAttachPointsInverse = 
+	(yellowYellow * 0.5) +
+	((redRed) * 0.5) +
+	((redYellow + yellowRed) * 1.0);
+
+	bf.tollerance = 
+	(yellowYellow * 0.2) +
+	((redRed) * 0.2) +
+	((redYellow + yellowRed) * 0.1);
+	
+
+	bf.dist = max(bf.dist, 0.01);
+	bf.otherAttachPointsInverse = max(bf.otherAttachPointsInverse, 0.01);
+	bf.selfAttachPointsInverse = max(bf.selfAttachPointsInverse, 0.01);
+	return bf;
 }
-
-float particleSize(Particle p){
-	return 
-	(yellow(p) * 0.15) + 
-	(red(p) * 0.08) + 
-	(white(p) * 0.06) + 
-	(green(p) * 0.06);
-}
-
-
-
-void reaction(inout Particle a, inout Particle b, float dist, float r1, float r2, float p1, float p2, float maxDist){
-	float reacted = type(a, r1) * type(b, r2) * step(dist, maxDist);
-	a.type = (((p1 + 0.001) * particleTypeSize) * reacted) + (a.type * (1.0 - reacted));
-	b.type = (((p1 + 0.001) * particleTypeSize) * reacted) + (b.type * (1.0 - reacted));
-}
-
-void react(inout Particle a, inout Particle b, float dist){
-	reaction(a, b, dist,
-		0.0, 1.0, //reagents
-		1.0, 1.0, //products
-		1.0 //max dist
-	);
-
-	reaction(a, b, dist,
-		1.0, 2.0, //reagents
-		0.0, 2.0, //products
-		1.5 //max dist
-	);
-}
-
 
 struct SmoothForce{
 	float force;
@@ -97,79 +142,83 @@ struct SmoothForce{
 };
 
 SmoothForce smoothForcePair(Particle p, Particle other){
-	float redWhite = white(p) * red(other) + white(other) * red(p);
-
-
+	float redMagenta = magenta(p) * red(other) + magenta(other) * red(p);
+	float yellowMagenta = magenta(p) * yellow(other) + magenta(other) * yellow(p);
 	float redRed = red(p) * red(other);
+	float redYellow = red(p) * yellow(other) + red(other) * yellow(p);
+	float magentaMagenta = magenta(p) * magenta(other);
+
 
 	SmoothForce bf;
 
 	bf.force = 
-	(redWhite * -3.0) +
-	(redRed * -3.0) +
-	(redRed * 1.0);
+	(redMagenta * -0.1) + 
+	(yellowMagenta * -0.6) +
+	((redRed) * 0.00) +
+	((redYellow) * 0.1) +
+	((magentaMagenta) * -0.1);
 
 	bf.beginDist = 
-	(redWhite * -0.0) +
-	(redRed * 0.0) +
-	(redRed * 0.5);
+	(redMagenta * 0.0) + 
+	(yellowMagenta * 0.0) +
+	((redRed) * 0.01) +
+	((redYellow) * 0.001) +
+	((magentaMagenta) * 0.0);
 
 	bf.endDist = 
-	(redWhite * 0.7) +
-	(redRed * 0.02) +
-	(redRed * 1.4);
+	(redMagenta * 0.7) + 
+	(yellowMagenta * 1.0) +
+	((redRed) * 0.5) +
+	((redYellow) * 0.5) +
+	((magentaMagenta) * 0.7);
 	
+
 	return bf;
 }
 
 
-
-struct BondForce{
-	float force;
-	float damping;
-	float dist;
-	float alignForce;
-	float angle;
-	float tollerance;
-	float fullDamping;
+struct FlowForce{
+	float viscosity;
+	float beginDist;
+	float endDist;
+	float flow;
+	float align;
 };
-BondForce bondForcePair(Particle p, Particle other){
-	float redRed = red(p) * red(other);
+
+FlowForce flowForcePair(Particle p, Particle other){
+	float magentaMagenta = magenta(p) * magenta(other);
+
+	FlowForce bf;
+
+	bf.viscosity = 
+	((magentaMagenta) * 2.0);
+
+	bf.beginDist = 
+	((magentaMagenta) * 0.0);
+
+	bf.endDist = 
+	((magentaMagenta) * 0.9);
 	
-	
+	bf.flow = 
+	((magentaMagenta) * 0.5);
 
-	BondForce bf;
-	//translation
-	bf.force = 
-	((redRed) * 21.0);
-
-	bf.damping = 
-	((redRed) * 4.0);
-
-	bf.fullDamping = 
-	((redRed) * 10.0);
-
-	bf.dist = 
-	((redRed) * 1.2);
-	
-	//alignment
-	bf.alignForce = 
-	((redRed) * 0.7);
-	
-	bf.angle = 
-	((redRed) * (PI2 * 0.05));
-
-	bf.tollerance = 
-	((redRed) * 0.001);
+	bf.align = 
+	((magentaMagenta) * 0.1);
 	
 
-	bf.dist = max(bf.dist, 0.01);
 	return bf;
 }
 
+float brownianForce(Particle p){
+	return (yellow(p) * 0.001) + (red(p) * 0.0) + (magenta(p) * 15.0);
+}
 
-
-
+float particleSize(Particle p){
+	return 
+	(yellow(p) * 0.15) + 
+	(red(p) * 0.08) + 
+	(magenta(p) * 0.06);
+}
 
 vec2 vec2FromAngle(float angle){
 	return vec2(cos(angle), sin(angle));
@@ -191,9 +240,6 @@ float wrapAngleFraction(float a, float fraction){
     return mod(a + (PI * fraction), PI2 * fraction) - (PI * fraction);
 }
 
-
-
-
 void polarBondForce(
     in BondForce bf,
     in Particle self,
@@ -206,36 +252,35 @@ void polarBondForce(
     if(bf.force < 0.002 && bf.alignForce < 0.002) return;
 	float distanceDecay = max(0.0, 1.4 - (dist / max(bf.dist, 0.05)));
 
+	//Axial rotation alignement
+	float alignement = wrapAngle((other.rotation - bf.otherTargetAngle) - (self.rotation - bf.selfTargetAngle));
+	float torqueFromAlignement = smoothstep(bf.tollerance * 0.95, bf.tollerance, abs(alignement)) * alignement;
+	float dotAlignement = dot(vec2FromAngle(self.rotation - bf.selfTargetAngle), vec2FromAngle(other.rotation - bf.otherTargetAngle));
 
+	torque += torqueFromAlignement * distanceDecay * bf.alignForce;
 
-	//Unalign repell
-	float alignError = wrapAngle(other.rotation - self.rotation);
+	//Bond rotation alignement
 	float bondRotation = wrapAngle(atan(delta.y, delta.x));
-	float angleDif = wrapAngle(self.rotation - bondRotation);
-	float dotError = dot(forward(self), forward(other));
-	float bondError = abs(wrapAngle(self.rotation - bondRotation)) - (PIHALF + bf.angle);
-	self.nya = 0.5;
-	self.nya = max(self.nya, bondError);
+	float selfBondRotationError = wrapAngleFraction(bondRotation - (self.rotation - bf.selfTargetAngle), bf.selfAttachPointsInverse);
+	
+	vec2 forceFromBondRotation = smoothstep(bf.tollerance * 0.95, bf.tollerance, abs(selfBondRotationError)) * selfBondRotationError * vec2FromAngle(bondRotation + PIHALF) * PI2 * bf.dist;
 
-	float repell = 0.7 - (abs(bondError / PIHALF));
-	repell = 1;
-
-	//Alignement
-	float alignTorque = alignError * 4.0;
-	torque += alignTorque * distanceDecay * bf.alignForce;
+	accel += forceFromBondRotation * distanceDecay * bf.alignForce;
 
 	//Bond force
+	dotAlignement = (step(0.0001, bf.alignForce) * ((dotAlignement - 0.1) * 2.0)) + step(bf.alignForce, 0.0001);
+
 	vec2 bondDirection = delta / dist;
 	vec2 relativeSpeed = other.speed - self.speed;
 	float relativeSpeedAlongBond = dot(relativeSpeed, bondDirection);
 	float distError = dist - bf.dist;
 
-	vec2 bondForce = sign(distError) * pow(abs(distError) / bf.dist, 2.0) * bondDirection;
-	vec2 dampingForce = relativeSpeedAlongBond * bondDirection;
+	vec2 bondForce = sign(distError) * pow(abs(distError) / bf.dist, 2.0) * bondDirection * distanceDecay * dotAlignement;
+	vec2 dampingForce = relativeSpeedAlongBond * bondDirection * distanceDecay * dotAlignement;
 
 	accel += relativeSpeed * distanceDecay * bf.fullDamping;
-	accel += bondForce * bf.force * distanceDecay * repell;
-    accel += dampingForce * bf.damping * distanceDecay;
+	accel += bondForce * bf.force;
+    accel += dampingForce * bf.damping;
 }
 
 void processCell(in uint cellId, inout Particle self, inout vec2 accel, inout float torque, in vec2 selfForward){
@@ -254,12 +299,9 @@ void processCell(in uint cellId, inout Particle self, inout vec2 accel, inout fl
 		Particle other = p[pId];
 		vec2 delta = other.pos - self.pos;
 		delta = mod(delta + worldSize * 0.5, worldSize) - worldSize * 0.5;
-		if(length(delta) > cellSize * 1.5) continue;  // too far, skip
+		if(length(delta) > cellSize * 1.5) return;  // too far, skip
 		vec2 nDelta = normalize(delta);
 		float dist = length(delta);
-
-		//Chemistry
-		react(self, other, dist);
 
 		//Default universal interaction
 		float minDist = particleSize(self) + particleSize(other);
@@ -270,31 +312,28 @@ void processCell(in uint cellId, inout Particle self, inout vec2 accel, inout fl
 			accel += 0.25 * ((other.speed - self.speed) * 0.3);
 		}
 
-
 		//Bond forces
 		BondForce bf = bondForcePair(self, other);
 		polarBondForce(bf, self, other, delta, dist, accel, torque);
 		
-
 		//Smooth forces
 		SmoothForce sf = smoothForcePair(self, other);
 		float smoothStrength = smoothstep(sf.beginDist, sf.endDist, dist) * sf.force;
-		//accel += nDelta * smoothStrength;
+		accel += nDelta * smoothStrength;
 
+		//flow forces
+		FlowForce ff = flowForcePair(self, other);
+		float flowStrength = smoothstep(ff.beginDist, ff.endDist, dist) * ff.viscosity;
+		vec2 speedDifference = other.speed - self.speed;
+		accel += speedDifference * flowStrength;
+		
+		float flowiness = dot(accel, selfForward);
+		accel += selfForward * flowiness * ff.flow;
+
+		torque += ff.align * ((other.rotation) - (1.0 * self.rotation)) * flowStrength;
 	}
 
 }
-
-void setParticleType(inout Particle p){
-	float t = abs(p.type);
-	p.type = 0;
-	p.type += step(0.94, t) * 2.0 * particleTypeSize;
-	p.type += step(0.99, t) * -1.0 * particleTypeSize;
-
-
-	p.type += 0.001;
-}
-
 
 void main (){
 	if (gl_GlobalInvocationID.x >= Count){
@@ -303,9 +342,6 @@ void main (){
 	uint i = gl_GlobalInvocationID.x;
 	Particle self = p[i];
 
-	if (self.type < 0){
-		setParticleType(self);
-	}
 	uint gridID = uint(clamp(self.pos.x / cellSize, 0.0, float(gridWidth - 1u))) + 
               uint(clamp(self.pos.y / cellSize, 0.0, float(gridWidth - 1u))) * gridWidth;
 	
@@ -313,8 +349,6 @@ void main (){
 
 	vec2 forwardVec = forward(self);
 	float torque = .0;
-
-	self.nya = 0.0;
 
 	processCell(gridID, self, accel, torque, forwardVec);
 	processCell(cellDisplace(1, 0, gridID), self, accel, torque, forwardVec);
@@ -328,11 +362,11 @@ void main (){
 
 	//Brownian
 	accel += (vec2(hash12((self.pos.yx * 599.0) + vec2(0.1 + (Time * 999.0), 0.1)), hash12((self.pos * 999.0) + vec2(100.0, 0.2 + Time * 999.0))) - 0.5) * brownianForce(self);
-	//torque += hash12((self.pos.yx * 59.0) + vec2(0.1 + (Time * 999.0), 0.1)) * 0.1 * brownianForce(self);
+	torque += hash12((self.pos.yx * 59.0) + vec2(0.1 + (Time * 999.0), 0.1)) * 0.1 * brownianForce(self);
 
 	//Acceleration
 	self.speed += dt * accel;
-	self.speed = clamp(self.speed, vec2(-7.0), vec2(7.0));
+	self.speed = clamp(self.speed, vec2(-6.0), vec2(6.0));
 
 	//Torque
 	self.rotationSpeed += torque * dt;
